@@ -948,7 +948,7 @@
             };
             infoControl.addTo(map);
 
-            fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-23-mun.json')
+            fetch('data/ceara-municipios.geojson')
                 .then((response) => response.json())
                 .then((data) => {
                     ceMunicipalData = data;
