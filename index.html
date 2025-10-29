@@ -113,7 +113,7 @@
 
         #map {
             width: 100%;
-            min-height: 520px;
+            min-height: clamp(360px, 60vh, 620px);
             flex: 1 1 auto;
         }
 
@@ -311,9 +311,9 @@
             color: rgba(29, 51, 39, 0.6);
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
             body {
-                padding: 32px 16px;
+                padding: 40px 20px;
             }
 
             main {
@@ -321,12 +321,94 @@
             }
 
             .sidebar {
-                padding: 24px;
+                padding: 28px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 28px 14px;
+                gap: 24px;
+            }
+
+            header {
+                gap: 14px;
+            }
+
+            header h1 {
+                font-size: clamp(1.9rem, 7vw, 2.4rem);
+            }
+
+            header p {
+                font-size: 0.95rem;
             }
 
             .scenario-switch {
                 flex-wrap: wrap;
                 justify-content: center;
+                width: 100%;
+                gap: 8px;
+            }
+
+            .scenario-btn {
+                flex: 1;
+                min-width: 150px;
+            }
+
+            .map-card {
+                border-radius: 22px;
+            }
+
+            #map {
+                min-height: clamp(320px, 55vh, 520px);
+            }
+
+            .sidebar {
+                padding: 22px;
+                gap: 20px;
+            }
+
+            .legend {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .legend-item {
+                flex: 1 1 calc(50% - 10px);
+                min-width: 140px;
+            }
+
+            .municipality-list {
+                max-height: 160px;
+                font-size: 0.82rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 24px 12px;
+            }
+
+            .brand-logo {
+                width: clamp(160px, 48vw, 210px);
+            }
+
+            .scenario-btn {
+                min-width: unset;
+            }
+
+            .legend-item {
+                flex: 1 1 100%;
+            }
+
+            .sidebar {
+                padding: 20px;
+            }
+
+            .notes-list,
+            .municipality-list {
+                padding-left: 16px;
             }
         }
     </style>
@@ -871,11 +953,16 @@
                 .then((data) => {
                     ceMunicipalData = data;
                     setScenario(selectedScenario);
+                    setTimeout(() => map.invalidateSize(), 150);
                 })
                 .catch((error) => {
                     console.error('Erro ao carregar o GeoJSON:', error);
                     showMapError('Não foi possível carregar a malha municipal. Verifique sua conexão com a internet e recarregue a página.');
                 });
+
+            window.addEventListener('resize', () => {
+                requestAnimationFrame(() => map.invalidateSize());
+            });
         }
     </script>
 </body>
