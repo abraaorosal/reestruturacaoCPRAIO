@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Mapa – Estrutura dos Batalhões RAIO</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg-gradient: radial-gradient(circle at 20% 20%, #f1f8f0 0, #eef6ea 45%, #e4f1e0 100%);
+            --card-shadow: 0 20px 40px rgba(12, 64, 36, 0.12);
+            --accent: #0F6C3C;
+            --accent-soft: rgba(15, 108, 60, 0.1);
+            --accent-contrast: #F2C641;
+            --text: #1D3327;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 56px 24px;
+            gap: 32px;
+        }
+
+        header {
+            text-align: center;
+            max-width: 960px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+        }
+
+        header h1 {
+            font-weight: 700;
+            font-size: clamp(2.2rem, 4vw, 3rem);
+            margin: 0 0 12px;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.6;
+            color: rgba(29, 51, 39, 0.72);
+        }
+
+        .brand-logo {
+            width: clamp(180px, 22vw, 240px);
+            height: auto;
+            filter: drop-shadow(0 10px 20px rgba(12, 64, 36, 0.18));
+        }
+
+        .scenario-switch {
+            display: inline-flex;
+            gap: 12px;
+            margin-top: 24px;
+            padding: 6px;
+            border-radius: 999px;
+            background: rgba(15, 108, 60, 0.12);
+            box-shadow: inset 0 1px 4px rgba(15, 108, 60, 0.1);
+        }
+
+        .scenario-btn {
+            border: none;
+            background: transparent;
+            color: rgba(29, 51, 39, 0.72);
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .scenario-btn.is-active {
+            background: #fff;
+            color: var(--accent);
+            box-shadow: 0 6px 16px rgba(12, 64, 36, 0.18);
+        }
+
+        .scenario-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        main {
+            width: min(1180px, 100%);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .map-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(247, 255, 247, 0.96));
+            border-radius: 28px;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            min-height: 520px;
+            flex: 1 1 auto;
+        }
+
+        .sidebar {
+            padding: 32px;
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.78);
+            border-radius: 28px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .sidebar-header h2 {
+            margin: 0 0 10px;
+            font-size: 1.4rem;
+        }
+
+        .scenario-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .sidebar-header p {
+            margin: 10px 0 0;
+            font-size: 0.9rem;
+            color: rgba(29, 51, 39, 0.72);
+            line-height: 1.5;
+        }
+
+        .legend {
+            display: grid;
+            gap: 12px;
+        }
+
+        .sidebar-section strong {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .notes-list {
+            margin: 0;
+            padding-left: 18px;
+            display: grid;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: rgba(29, 51, 39, 0.68);
+        }
+
+        .municipality-list {
+            margin: 0;
+            padding-left: 18px;
+            display: grid;
+            gap: 4px;
+            max-height: 220px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            color: rgba(29, 51, 39, 0.78);
+        }
+
+        .municipality-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .municipality-list::-webkit-scrollbar-thumb {
+            background: rgba(15, 108, 60, 0.3);
+            border-radius: 999px;
+        }
+
+        .municipality-list li {
+            list-style: disc;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: var(--accent-soft);
+            border: 1px solid rgba(15, 108, 60, 0.18);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .legend-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 18px rgba(12, 64, 36, 0.12);
+        }
+
+        .legend-item.is-active {
+            background: rgba(15, 108, 60, 0.18);
+            border-color: rgba(15, 108, 60, 0.36);
+        }
+
+        .legend-swatch {
+            width: 18px;
+            height: 18px;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+
+        .legend-content strong {
+            font-size: 1rem;
+            display: block;
+        }
+
+        .legend-content span {
+            font-size: 0.85rem;
+            color: rgba(29, 51, 39, 0.62);
+        }
+
+        .leaflet-container {
+            font-family: inherit;
+        }
+
+        .hq-label {
+            background: rgba(15, 108, 60, 0.9);
+            color: #fff;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: none;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .map-error {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 32px;
+            border-radius: 28px;
+            background: linear-gradient(135deg, rgba(15, 108, 60, 0.08), rgba(242, 198, 65, 0.18));
+            color: #1D3327;
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .info-box {
+            background: rgba(255, 255, 255, 0.94);
+            padding: 14px 18px;
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(12, 64, 36, 0.12);
+            color: var(--text);
+        }
+
+        .info-box h3 {
+            margin: 0 0 4px;
+            font-size: 1rem;
+        }
+
+        .info-box span {
+            font-size: 0.85rem;
+            color: rgba(29, 51, 39, 0.64);
+        }
+
+        footer {
+            max-width: 960px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: rgba(29, 51, 39, 0.75);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        footer strong {
+            font-size: 1.05rem;
+            color: var(--accent);
+            letter-spacing: 0.02em;
+        }
+
+        footer span {
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        footer small {
+            font-size: 0.75rem;
+            color: rgba(29, 51, 39, 0.6);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 32px 16px;
+            }
+
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                padding: 24px;
+            }
+
+            .scenario-switch {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="logoraio.png" alt="Logomarca das tropas RAIO" class="brand-logo">
+        <h1>Distribuição Proposta dos Batalhões RAIO</h1>
+        <p>
+            Visualização interativa destacando a cobertura territorial e a sede estratégica de cada batalhão,
+            facilitando a análise da nova arquitetura operacional no Ceará.
+        </p>
+        <div class="scenario-switch" role="tablist" aria-label="Selecionar cenário de redistribuição">
+            <button type="button" class="scenario-btn is-active" data-scenario="A" aria-pressed="true">
+                Cenário A — 7 Batalhões
+            </button>
+            <button type="button" class="scenario-btn" data-scenario="B" aria-pressed="false">
+                Cenário B — 8 Batalhões
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <section class="map-card" id="map-card">
+            <div id="map" aria-label="Mapa dos batalhões RAIO"></div>
+        </section>
+
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Estrutura Atual</h2>
+                <span class="scenario-pill" id="scenario-pill">Cenário A — 7 Batalhões</span>
+                <p id="scenario-summary" class="scenario-summary">
+                    Sedes: Fortaleza, Caucaia, Russas, Sobral, Juazeiro do Norte, Iguatu, Itapipoca.
+                </p>
+            </div>
+            <div class="legend" id="legend"></div>
+            <div class="sidebar-section">
+                <strong>Interações</strong>
+                <p style="margin: 6px 0 0; font-size: 0.85rem; color: rgba(29, 51, 39, 0.64);">
+                    Passe o mouse nos municípios para ver o batalhão responsável. Clique em um batalhão na legenda
+                    ou no mapa para destacar apenas sua área de atuação.
+                </p>
+            </div>
+            <div class="sidebar-section" id="battalion-details" hidden>
+                <strong id="battalion-details-title"></strong>
+                <p id="battalion-details-hq" style="margin: 6px 0 12px; font-size: 0.85rem; color: rgba(29, 51, 39, 0.72);"></p>
+                <ul class="municipality-list" id="battalion-details-list"></ul>
+            </div>
+            <div class="sidebar-section">
+                <strong>Observações Técnicas</strong>
+                <ul class="notes-list">
+                    <li>Fortaleza permanece exclusiva pela alta demanda urbana.</li>
+                    <li>Sedes em Iguatu e Itapipoca reduzem deslocamentos no Centro-Sul e litoral.</li>
+                    <li>Quixadá assume eixo Sertão Central no cenário B, aliviando Russas.</li>
+                </ul>
+            </div>
+        </aside>
+    </main>
+
+    <footer>
+        <strong>Seção de Ensino e Instrução P/3 - CPRaio</strong>
+        <span>Polícia Militar do Ceará</span>
+        <small>Fonte da malha municipal: GeoJSON público (Ceará). Cores agrupadas conforme proposta de redistribuição dos batalhões RAIO.</small>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const BATTALION_COLORS = {
+            1: '#0B3D2E',
+            2: '#1E874B',
+            3: '#73C000',
+            4: '#F2C641',
+            5: '#F29E26',
+            6: '#D95D39',
+            7: '#1F77B4',
+            8: '#6F42C1'
+        };
+        const MUTED_FILL = '#E5ECE2';
+
+        const SCENARIOS = {
+            A: {
+                key: 'A',
+                title: 'Cenário A — 7 Batalhões',
+                summary: 'Sedes: Fortaleza, Caucaia, Russas, Sobral, Juazeiro do Norte, Iguatu, Itapipoca.',
+                assignments: {
+                    1: ['Fortaleza'],
+                    2: [
+                        'Caucaia', 'Maracanaú', 'Eusébio', 'Horizonte', 'São Gonçalo Do Amarante',
+                        'Maranguape', 'Aquiraz', 'Pacajus', 'Pacatuba', 'Cascavel', 'Itaitinga',
+                        'Guaiúba', 'Chorozinho', 'Redenção', 'Aracoiaba'
+                    ],
+                    3: [
+                        'Russas', 'Aracati', 'Quixadá', 'Limoeiro Do Norte', 'Beberibe', 'Quixeramobim',
+                        'Morada Nova', 'Jaguaruana', 'Baturité', 'Jaguaribe', 'Icapuí', 'Boa Viagem',
+                        'Tabuleiro Do Norte', 'Pedra Branca', 'Ocara', 'Senador Pompeu'
+                    ],
+                    4: [
+                        'Sobral', 'Tianguá', 'Massapê', 'Viçosa Do Ceará', 'Santa Quitéria',
+                        'Santana Do Acaraú', 'São Benedito', 'Forquilha', 'Guaraciaba Do Norte',
+                        'Ipu', 'Ubajara', 'Ibiapina', 'Ipueiras'
+                    ],
+                    5: [
+                        'Juazeiro Do Norte', 'Brejo Santo', 'Crato', 'Barbalha', 'Jardim',
+                        'Missão Velha', 'Mauriti', 'Várzea Alegre', 'Lavras Da Mangabeira',
+                        'Campos Sales', 'Cariús', 'Cedro', 'Aurora', 'Milagres', 'Icó'
+                    ],
+                    6: [
+                        'Iguatu', 'Mombaça', 'Acopiara', 'Tauá', 'Crateús', 'Parambu',
+                        'Tamboril', 'Novo Oriente', 'Independência', 'Nova Russas'
+                    ],
+                    7: [
+                        'Itapipoca', 'Amontada', 'Trairi', 'Pentecoste', 'Itapajé', 'Paracuru',
+                        'Paraipaba', 'Acaraú', 'Cruz', 'Marco', 'Bela Cruz', 'Itarema',
+                        'Camocim', 'Granja', 'Canindé'
+                    ]
+                },
+                hqs: {
+                    1: { name: 'Fortaleza', coords: [-3.7304512, -38.5217989] },
+                    2: { name: 'Caucaia', coords: [-3.7361, -38.6539] },
+                    3: { name: 'Russas', coords: [-4.9378, -37.9798] },
+                    4: { name: 'Sobral', coords: [-3.6894, -40.3482] },
+                    5: { name: 'Juazeiro do Norte', coords: [-7.2131, -39.3154] },
+                    6: { name: 'Iguatu', coords: [-6.3611, -39.3004] },
+                    7: { name: 'Itapipoca', coords: [-3.4946, -39.5826] }
+                }
+            },
+            B: {
+                key: 'B',
+                title: 'Cenário B — 8 Batalhões',
+                summary: 'Sedes: Fortaleza, Caucaia, Quixadá, Russas, Sobral, Itapipoca, Iguatu, Juazeiro do Norte.',
+                assignments: {
+                    1: ['Fortaleza'],
+                    2: [
+                        'Caucaia', 'Maracanaú', 'Eusébio', 'Horizonte', 'São Gonçalo Do Amarante',
+                        'Maranguape', 'Aquiraz', 'Pacajus', 'Pacatuba', 'Cascavel', 'Itaitinga',
+                        'Guaiúba', 'Chorozinho', 'Redenção', 'Aracoiaba'
+                    ],
+                    3: [
+                        'Quixadá', 'Quixeramobim', 'Boa Viagem', 'Pedra Branca', 'Senador Pompeu',
+                        'Ocara', 'Baturité'
+                    ],
+                    4: [
+                        'Russas', 'Limoeiro Do Norte', 'Morada Nova', 'Jaguaruana', 'Jaguaribe',
+                        'Aracati', 'Beberibe', 'Icapuí', 'Tabuleiro Do Norte'
+                    ],
+                    5: [
+                        'Sobral', 'Tianguá', 'Massapê', 'Viçosa Do Ceará', 'Santa Quitéria',
+                        'Santana Do Acaraú', 'São Benedito', 'Forquilha', 'Guaraciaba Do Norte',
+                        'Ipu', 'Ubajara', 'Ibiapina', 'Ipueiras'
+                    ],
+                    6: [
+                        'Itapipoca', 'Trairi', 'Amontada', 'Itapajé', 'Pentecoste', 'Paracuru',
+                        'Paraipaba', 'Acaraú', 'Cruz', 'Itarema', 'Marco', 'Bela Cruz',
+                        'Camocim', 'Granja', 'Canindé'
+                    ],
+                    7: [
+                        'Iguatu', 'Icó', 'Mombaça', 'Acopiara', 'Tauá', 'Crateús',
+                        'Parambu', 'Tamboril', 'Novo Oriente', 'Independência', 'Nova Russas'
+                    ],
+                    8: [
+                        'Juazeiro Do Norte', 'Brejo Santo', 'Crato', 'Barbalha', 'Jardim',
+                        'Missão Velha', 'Mauriti', 'Várzea Alegre', 'Lavras Da Mangabeira',
+                        'Campos Sales', 'Cariús', 'Cedro', 'Aurora', 'Milagres'
+                    ]
+                },
+                hqs: {
+                    1: { name: 'Fortaleza', coords: [-3.7304512, -38.5217989] },
+                    2: { name: 'Caucaia', coords: [-3.7361, -38.6539] },
+                    3: { name: 'Quixadá', coords: [-4.9736, -39.0153] },
+                    4: { name: 'Russas', coords: [-4.9378, -37.9798] },
+                    5: { name: 'Sobral', coords: [-3.6894, -40.3482] },
+                    6: { name: 'Itapipoca', coords: [-3.4946, -39.5826] },
+                    7: { name: 'Iguatu', coords: [-6.3611, -39.3004] },
+                    8: { name: 'Juazeiro do Norte', coords: [-7.2131, -39.3154] }
+                }
+            }
+        };
+
+        const legendItems = new Map();
+        const headquarterMarkers = new Map();
+        const DEFAULT_VIEW = { center: [-4.977, -39.59], zoom: 7 };
+
+        const normalize = (name) => name
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[-']/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toUpperCase();
+
+        const scenarioButtons = document.querySelectorAll('.scenario-btn');
+        const scenarioPill = document.getElementById('scenario-pill');
+        const scenarioSummary = document.getElementById('scenario-summary');
+        const legendElement = document.getElementById('legend');
+        const mapCard = document.getElementById('map-card');
+        const detailsSection = document.getElementById('battalion-details');
+        const detailsTitle = document.getElementById('battalion-details-title');
+        const detailsHQ = document.getElementById('battalion-details-hq');
+        const detailsList = document.getElementById('battalion-details-list');
+
+        let selectedScenario = 'A';
+        let selectedBattalion = null;
+        let currentScenario = null;
+        let assignmentLookup = new Map();
+        let map;
+        let infoControl;
+        let geojsonLayer;
+        let hqLayer;
+        let ceMunicipalData = null;
+
+        const showMapError = (message) => {
+            if (!mapCard || mapCard.querySelector('.map-error')) return;
+            const error = document.createElement('div');
+            error.className = 'map-error';
+            error.textContent = message;
+            mapCard.appendChild(error);
+        };
+
+        const updateLegendSelection = () => {
+            legendItems.forEach((element, battalion) => {
+                const isActive = selectedBattalion === battalion;
+                element.classList.toggle('is-active', isActive);
+                element.setAttribute('aria-pressed', String(isActive));
+            });
+        };
+
+        const applyFilterStyles = () => {
+            if (!geojsonLayer) return;
+            geojsonLayer.eachLayer((layer) => {
+                const style = getFeatureStyle(layer.feature);
+                layer.setStyle(style);
+            });
+        };
+
+        const applyHQFilterStyles = () => {
+            headquarterMarkers.forEach((marker, battalion) => {
+                const isActive = selectedBattalion === null || selectedBattalion === battalion;
+                marker.setStyle({
+                    opacity: isActive ? 1 : 0.2,
+                    fillOpacity: isActive ? 1 : 0.2
+                });
+            });
+        };
+
+        const updateDetails = (battalion) => {
+            if (!detailsSection || !currentScenario) return;
+            if (!battalion || !currentScenario.assignments[battalion]) {
+                detailsSection.hidden = true;
+                if (detailsTitle) detailsTitle.textContent = '';
+                if (detailsHQ) detailsHQ.textContent = '';
+                if (detailsList) detailsList.replaceChildren();
+                return;
+            }
+
+            const municipalities = [...currentScenario.assignments[battalion]];
+            municipalities.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            const headquarters = currentScenario.hqs[battalion];
+
+            if (detailsTitle) {
+                const count = municipalities.length;
+                detailsTitle.textContent = `${battalion}º BPRAIO — ${count} município${count > 1 ? 's' : ''}`;
+            }
+            if (detailsHQ) {
+                detailsHQ.textContent = headquarters
+                    ? `Sede: ${headquarters.name}`
+                    : 'Sede: não informada';
+            }
+            if (detailsList) {
+                detailsList.replaceChildren();
+                municipalities.forEach((city) => {
+                    const li = document.createElement('li');
+                    li.textContent = city;
+                    detailsList.appendChild(li);
+                });
+            }
+
+            detailsSection.hidden = false;
+        };
+
+        const focusOnBattalion = (battalion) => {
+            if (!geojsonLayer) return;
+            let bounds = null;
+            geojsonLayer.eachLayer((layer) => {
+                const props = layer.feature.properties;
+                const assigned = assignmentLookup.get(normalize(props.name));
+                if (assigned === battalion) {
+                    bounds = bounds ? bounds.extend(layer.getBounds()) : layer.getBounds();
+                }
+            });
+            if (bounds) {
+                map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+            }
+        };
+
+        const toggleBattalionFilter = (battalion, { focus = false, resetView = true } = {}) => {
+            const activating = selectedBattalion !== battalion;
+            selectedBattalion = activating ? battalion : null;
+            updateLegendSelection();
+            applyFilterStyles();
+            applyHQFilterStyles();
+            updateDetails(selectedBattalion);
+            if (infoControl) {
+                infoControl.update();
+            }
+            if (activating) {
+                if (focus) {
+                    focusOnBattalion(battalion);
+                }
+            } else if (resetView) {
+                map.setView(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom);
+            }
+        };
+
+        const getFeatureStyle = (feature) => {
+            const name = feature.properties && feature.properties.name
+                ? normalize(feature.properties.name)
+                : '';
+            const battalion = assignmentLookup.get(name);
+            const isFiltered = selectedBattalion !== null;
+            const isTarget = battalion === selectedBattalion;
+
+            const fillColor = battalion
+                ? (isFiltered && !isTarget ? MUTED_FILL : BATTALION_COLORS[battalion])
+                : '#ECEFF4';
+
+            return {
+                color: '#FFFFFF',
+                weight: battalion ? (isFiltered && isTarget ? 2 : 1) : 0.5,
+                opacity: isFiltered && battalion && !isTarget ? 0.5 : 1,
+                fillColor,
+                fillOpacity: battalion
+                    ? (isFiltered ? (isTarget ? 0.85 : 0.18) : 0.65)
+                    : 0.15
+            };
+        };
+
+        const highlightFeature = (e) => {
+            const layer = e.target;
+            const props = layer.feature.properties;
+            const battalion = assignmentLookup.get(normalize(props.name));
+
+            if (selectedBattalion !== null && battalion !== selectedBattalion) {
+                return;
+            }
+
+            layer.setStyle({
+                weight: 3,
+                color: '#FFFFFF',
+                fillOpacity: 0.9
+            });
+
+            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                layer.bringToFront();
+            }
+
+            infoControl.update({
+                name: props.name,
+                battalion
+            });
+        };
+
+        const resetHighlight = (e) => {
+            if (geojsonLayer) {
+                geojsonLayer.resetStyle(e.target);
+            }
+            infoControl.update();
+        };
+
+        const onEachFeature = (feature, layer) => {
+            const name = feature.properties.name;
+            const normalizedName = normalize(name);
+            const battalion = assignmentLookup.get(normalizedName);
+            const battalionLabel = battalion ? `${battalion}&ordm; Batalhão` : 'Ainda sem cobertura definida';
+
+            layer.bindPopup(`
+                <strong>${name}</strong><br>
+                ${battalionLabel}
+            `);
+
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight,
+                click: () => {
+                    if (battalion) {
+                        toggleBattalionFilter(battalion, { focus: true });
+                    }
+                    layer.openPopup();
+                }
+            });
+        };
+
+        const buildLegend = (scenario) => {
+            legendElement.replaceChildren();
+            legendItems.clear();
+
+            Object.entries(scenario.hqs).forEach(([bat, info]) => {
+                const battalionNumber = Number(bat);
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.setAttribute('role', 'button');
+                item.setAttribute('tabindex', '0');
+                item.setAttribute('aria-pressed', 'false');
+                item.dataset.battalion = bat;
+
+                const swatch = document.createElement('span');
+                swatch.className = 'legend-swatch';
+                swatch.style.background = BATTALION_COLORS[bat];
+
+                const content = document.createElement('div');
+                content.className = 'legend-content';
+                content.innerHTML = `<strong>${bat}&ordm; Batalhão</strong><span>Sede: ${info.name}</span>`;
+
+                item.appendChild(swatch);
+                item.appendChild(content);
+                legendElement.appendChild(item);
+
+                item.addEventListener('click', () => toggleBattalionFilter(battalionNumber, { focus: true }));
+                item.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggleBattalionFilter(battalionNumber, { focus: true });
+                    }
+                });
+
+                legendItems.set(battalionNumber, item);
+            });
+
+            updateLegendSelection();
+        };
+
+        const refreshAssignmentLookup = (scenario) => {
+            assignmentLookup = new Map();
+            Object.entries(scenario.assignments).forEach(([bat, cities]) => {
+                cities.forEach((city) => {
+                    assignmentLookup.set(normalize(city), Number(bat));
+                });
+            });
+        };
+
+        const rebuildGeoLayer = () => {
+            if (!ceMunicipalData) return;
+            if (geojsonLayer) {
+                map.removeLayer(geojsonLayer);
+            }
+            geojsonLayer = L.geoJSON(ceMunicipalData, {
+                style: getFeatureStyle,
+                onEachFeature
+            }).addTo(map);
+            applyFilterStyles();
+        };
+
+        const rebuildHeadquartersLayer = (scenario) => {
+            if (hqLayer) {
+                map.removeLayer(hqLayer);
+            }
+            headquarterMarkers.clear();
+            const markers = Object.entries(scenario.hqs).map(([bat, info]) => {
+                const battalionNumber = Number(bat);
+                const marker = L.circleMarker(info.coords, {
+                    radius: 8,
+                    color: '#fff',
+                    weight: 2,
+                    fillColor: BATTALION_COLORS[bat],
+                    fillOpacity: 1
+                }).bindTooltip(`${bat}&ordm; Batalhão – ${info.name}`, {
+                    permanent: true,
+                    direction: 'top',
+                    offset: [0, -12],
+                    className: 'hq-label'
+                });
+                headquarterMarkers.set(battalionNumber, marker);
+                return marker;
+            });
+            hqLayer = L.layerGroup(markers).addTo(map);
+            applyHQFilterStyles();
+        };
+
+        const setScenario = (key) => {
+            if (!SCENARIOS[key]) return;
+            selectedScenario = key;
+            selectedBattalion = null;
+            currentScenario = SCENARIOS[key];
+            const scenario = currentScenario;
+
+            scenarioButtons.forEach((button) => {
+                const isActive = button.dataset.scenario === key;
+                button.classList.toggle('is-active', isActive);
+                button.setAttribute('aria-pressed', String(isActive));
+            });
+
+            scenarioPill.textContent = scenario.title;
+            scenarioSummary.textContent = scenario.summary;
+
+            refreshAssignmentLookup(scenario);
+            buildLegend(scenario);
+            rebuildGeoLayer();
+            rebuildHeadquartersLayer(scenario);
+            map.setView(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom);
+            updateDetails(null);
+
+            if (infoControl) {
+                infoControl.update();
+            }
+        };
+
+        scenarioButtons.forEach((button) => {
+            button.addEventListener('click', () => setScenario(button.dataset.scenario));
+        });
+
+        if (!window.L) {
+            showMapError('Não foi possível carregar a biblioteca Leaflet. Verifique sua conexão e desbloqueie o CDN unpkg.com.');
+        } else {
+            map = L.map('map', { zoomControl: false }).setView(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom);
+            L.control.zoom({ position: 'topright' }).addTo(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 12,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            infoControl = L.control({ position: 'bottomleft' });
+            infoControl.onAdd = function () {
+                this._div = L.DomUtil.create('div', 'info-box');
+                this.update();
+                return this._div;
+            };
+            infoControl.update = function (props) {
+                if (!props) {
+                    const scenario = SCENARIOS[selectedScenario];
+                    const label = selectedBattalion
+                        ? `${selectedBattalion}&ordm; Batalhão filtrado`
+                        : 'Passe o mouse sobre um município';
+                    this._div.innerHTML = `<h3>${scenario.title}</h3><span>${label}</span>`;
+                    return;
+                }
+                const battalion = props.battalion ? `${props.battalion}&ordm; Batalhão` : 'Não definido na proposta';
+                this._div.innerHTML = `<h3>${props.name}</h3><span>${battalion}</span>`;
+            };
+            infoControl.addTo(map);
+
+            fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-23-mun.json')
+                .then((response) => response.json())
+                .then((data) => {
+                    ceMunicipalData = data;
+                    setScenario(selectedScenario);
+                })
+                .catch((error) => {
+                    console.error('Erro ao carregar o GeoJSON:', error);
+                    showMapError('Não foi possível carregar a malha municipal. Verifique sua conexão com a internet e recarregue a página.');
+                });
+        }
+    </script>
+</body>
+</html>
